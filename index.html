@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ThinkContent.ai — Tool Cost Estimator</title>
+<style>
+  :root {
+    --navy: #1F4E79; --blue: #2E75B6; --purple: #4B2D8A; --teal: #0F6E56;
+    --lt-blue: #BDD7EE; --lt-purp: #D9D2F0; --lt-teal: #C6EAE0;
+    --ice: #EAF4FB; --white: #FFFFFF; --lgray: #F2F2F2; --mgray: #D6DCE4; --dgray: #595959;
+    --amber-b: #FFF2CC; --amber-f: #C6A800;
+    --red-b: #FCE4D6; --red-f: #C00000;
+    --green-b: #E2EFDA; --green-f: #375623;
+    --input-c: #0070C0;
+    --border: #BFBFBF;
+    --font: Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); font-size: 13px; background: #F0F2F5; color: #1A1A1A; }
+
+  /* ── Layout ── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  .masthead { background: var(--navy); color: #fff; border-radius: 8px; padding: 20px 28px; margin-bottom: 6px; }
+  .masthead h1 { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+  .masthead p  { font-size: 13px; opacity: .75; margin-top: 4px; }
+  .sub-banner { background: var(--blue); color: #fff; border-radius: 0 0 8px 8px; padding: 8px 28px; font-size: 12px; margin-bottom: 20px; opacity: .9; }
+
+  /* ── Tabs ── */
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+  .tab-btn { padding: 8px 18px; border-radius: 6px; border: 1.5px solid var(--border); background: var(--white); color: var(--dgray); font-size: 13px; font-family: var(--font); cursor: pointer; font-weight: 500; transition: all .15s; }
+  .tab-btn:hover { background: var(--lgray); }
+  .tab-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .tab-pane { display: none; } .tab-pane.active { display: block; }
+
+  /* ── Summary cards ── */
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .card { background: var(--white); border: 1px solid var(--mgray); border-radius: 8px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card .cl { font-size: 11px; color: var(--dgray); margin-bottom: 5px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+  .card .cv { font-size: 24px; font-weight: 600; color: var(--navy); }
+  .card .cv.green { color: var(--teal); }
+  .card .cv.amber { color: var(--amber-f); }
+  .card .cv.red   { color: var(--red-f); }
+
+  /* ── Bar chart ── */
+  .bar-section { background: var(--white); border: 1px solid var(--mgray); border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; }
+  .bar-section h3 { font-size: 12px; color: var(--dgray); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 7px; }
+  .bar-lbl { font-size: 12px; color: var(--dgray); width: 96px; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 10px; background: var(--lgray); border-radius: 5px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 5px; transition: width .3s; }
+  .bar-val { font-size: 12px; font-weight: 600; color: var(--navy); width: 68px; text-align: right; flex-shrink: 0; }
+
+  /* ── Tool card ── */
+  .tool-card { background: var(--white); border: 1px solid var(--mgray); border-radius: 8px; padding: 16px 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .tool-hdr { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; gap: 12px; }
+  .tool-name { font-size: 15px; font-weight: 700; color: var(--navy); }
+  .tool-cost { text-align: right; }
+  .tool-cost .tc { font-size: 20px; font-weight: 700; color: var(--navy); }
+  .tool-cost .tl { font-size: 11px; color: var(--dgray); margin-top: 2px; }
+
+  /* ── Sliders ── */
+  .ctrl-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 20px; }
+  @media(max-width:600px){ .ctrl-grid { grid-template-columns: 1fr; } }
+  .ctrl { display: flex; flex-direction: column; gap: 3px; }
+  .ctrl-top { display: flex; justify-content: space-between; }
+  .ctrl-top label { font-size: 11px; color: var(--dgray); }
+  .ctrl-top .cv2 { font-size: 11px; font-weight: 600; color: var(--navy); }
+  .ctrl input[type=range] { width: 100%; accent-color: var(--navy); }
+  .ctrl select { font-size: 12px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font); }
+  .ctrl.full { grid-column: 1 / -1; }
+
+  /* ── Plan picker ── */
+  .plan-grid { display: grid; gap: 6px; }
+  .plan-opt { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 6px; border: 1.5px solid var(--border); cursor: pointer; transition: all .15s; }
+  .plan-opt:hover { background: var(--lgray); }
+  .plan-opt.sel { border-color: var(--purple); background: var(--lt-purp); }
+  .plan-opt .pn { font-size: 13px; font-weight: 600; color: #1A1A1A; }
+  .plan-opt.sel .pn { color: var(--purple); }
+  .plan-opt .pd { font-size: 11px; color: var(--dgray); margin-top: 2px; }
+  .plan-opt.sel .pd { color: var(--purple); opacity: .8; }
+  .plan-opt .pp { font-size: 14px; font-weight: 700; white-space: nowrap; color: var(--navy); }
+  .plan-opt.sel .pp { color: var(--purple); }
+  .badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; margin-left: 5px; }
+  .badge-pop  { background: var(--green-b); color: var(--green-f); }
+  .badge-team { background: var(--amber-b); color: var(--amber-f); }
+
+  /* ── Annual toggle ── */
+  .annual-row { display: flex; align-items: center; gap: 12px; background: var(--green-b); border-radius: 8px; padding: 10px 16px; margin-bottom: 16px; }
+  .annual-row span { font-size: 13px; color: var(--green-f); font-weight: 500; }
+  .annual-row b { color: var(--teal); }
+  .switch { position: relative; display: inline-block; width: 42px; height: 24px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider-sw { position: absolute; inset: 0; background: var(--mgray); border-radius: 24px; transition: .2s; cursor: pointer; }
+  .slider-sw:before { content: ""; position: absolute; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .2s; }
+  input:checked + .slider-sw { background: var(--teal); }
+  input:checked + .slider-sw:before { transform: translateX(18px); }
+
+  /* ── Seats row ── */
+  .seats-row { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--mgray); }
+  .seats-row label { font-size: 11px; color: var(--dgray); min-width: 90px; }
+  .seats-row input[type=range] { flex: 1; accent-color: var(--purple); }
+  .seats-row .sv { font-size: 12px; font-weight: 600; color: var(--navy); min-width: 28px; text-align: right; }
+
+  /* ── Alerts ── */
+  .alert { border-left: 3px solid; padding: 8px 12px; font-size: 11px; line-height: 1.5; margin-top: 10px; border-radius: 0 4px 4px 0; }
+  .alert-warn { border-color: var(--amber-f); background: var(--amber-b); color: #633806; }
+  .alert-ok   { border-color: var(--teal);    background: var(--lt-teal); color: var(--teal); }
+  .alert-info { border-color: var(--blue);    background: var(--ice);     color: var(--navy); }
+  .alert-red  { border-color: var(--red-f);   background: var(--red-b);   color: var(--red-f); }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--mgray); margin: 16px 0; }
+
+  /* ── Download btn ── */
+  .dl-bar { display: flex; justify-content: flex-end; margin-bottom: 12px; }
+  .dl-btn { background: var(--navy); color: #fff; border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-family: var(--font); cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .dl-btn:hover { background: var(--blue); }
+
+  /* ── Footer ── */
+  .footer { text-align: center; font-size: 11px; color: var(--dgray); margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--mgray); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="masthead">
+    <h1>ThinkContent.ai — Tool Cost Estimator</h1>
+    <p>Credit-based &amp; subscription pricing across Tavily · Replit · Perplexity · Zernio</p>
+  </div>
+  <div class="sub-banner">June 2026 &nbsp;|&nbsp; Internal use only &nbsp;|&nbsp; Update prices quarterly</div>
+
+  <div class="dl-bar">
+    <button class="dl-btn" onclick="window.print()">⬇ Print / Save as PDF</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('credit', this)">Credit-based model</button>
+    <button class="tab-btn" onclick="switchTab('sub', this)">Subscription model</button>
+  </div>
+
+  <!-- ═══════ CREDIT TAB ═══════ -->
+  <div class="tab-pane active" id="tab-credit">
+    <div class="card-grid" id="cr-cards">
+      <div class="card"><div class="cl">Total low est.</div><div class="cv green" id="cr-lo">—</div></div>
+      <div class="card"><div class="cl">Total high est.</div><div class="cv red" id="cr-hi">—</div></div>
+      <div class="card"><div class="cl">Monthly midpoint</div><div class="cv" id="cr-mid">—</div></div>
+      <div class="card"><div class="cl">Highest spend</div><div class="cv amber" id="cr-top">—</div></div>
+    </div>
+
+    <div class="bar-section">
+      <h3>Spend by tool (midpoint)</h3>
+      <div id="cr-bars"></div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- TAVILY -->
+    <div class="tool-card">
+      <div class="tool-hdr">
+        <div class="tool-name">🔍 Tavily</div>
+        <div class="tool-cost"><div class="tc" id="tav-cost">—</div><div class="tl" id="tav-lbl">—</div></div>
+      </div>
+      <div class="ctrl-grid">
+        <div class="ctrl"><div class="ctrl-top"><label>Basic searches / day</label><span class="cv2" id="tb-v">100</span></div><input type="range" min="0" max="2000" step="10" value="100" id="tb" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Advanced searches / day</label><span class="cv2" id="ta-v">20</span></div><input type="range" min="0" max="500" step="5" value="20" id="ta" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>URL extractions / day</label><span class="cv2" id="te-v">0</span></div><input type="range" min="0" max="500" step="5" value="0" id="te" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Research API calls / day</label><span class="cv2" id="tr-v">0</span></div><input type="range" min="0" max="50" step="1" value="0" id="tr" oninput="crCalc()"></div>
+        <div class="ctrl full"><div class="ctrl-top"><label>Credit rate</label></div>
+          <select id="tplan" onchange="crCalc()">
+            <option value="0.008">Pay-as-you-go — $0.008 / credit</option>
+            <option value="0.0075">Starter plan — $0.0075 / credit</option>
+            <option value="0.006">Growth plan — $0.006 / credit</option>
+            <option value="0.005">Enterprise — $0.005 / credit</option>
+          </select>
+        </div>
+      </div>
+      <div id="tav-alert"></div>
+    </div>
+
+    <!-- REPLIT -->
+    <div class="tool-card">
+      <div class="tool-hdr">
+        <div class="tool-name">💻 Replit</div>
+        <div class="tool-cost"><div class="tc" id="rep-cost">—</div><div class="tl" id="rep-lbl">—</div></div>
+      </div>
+      <div class="ctrl-grid">
+        <div class="ctrl"><div class="ctrl-top"><label>Builders on plan</label><span class="cv2" id="rb-v">3</span></div><input type="range" min="1" max="15" step="1" value="3" id="rb" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Simple AI tasks / builder / day</label><span class="cv2" id="rs-v">10</span></div><input type="range" min="0" max="50" step="1" value="10" id="rs" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Complex agent tasks / builder / day</label><span class="cv2" id="rc-v">2</span></div><input type="range" min="0" max="20" step="1" value="2" id="rc" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Deployments / month</label><span class="cv2" id="rd-v">4</span></div><input type="range" min="0" max="50" step="1" value="4" id="rd" oninput="crCalc()"></div>
+        <div class="ctrl full"><div class="ctrl-top"><label>Plan tier</label></div>
+          <select id="rplan" onchange="crCalc()">
+            <option value="core">Core — $20/month base (individual)</option>
+            <option value="pro">Pro — $100/month base (up to 15 builders)</option>
+          </select>
+        </div>
+      </div>
+      <div id="rep-alert"></div>
+    </div>
+
+    <!-- PERPLEXITY -->
+    <div class="tool-card">
+      <div class="tool-hdr">
+        <div class="tool-name">🤖 Perplexity</div>
+        <div class="tool-cost"><div class="tc" id="ppl-cost">—</div><div class="tl" id="ppl-lbl">—</div></div>
+      </div>
+      <div class="ctrl-grid">
+        <div class="ctrl"><div class="ctrl-top"><label>Sonar (base) queries / day</label><span class="cv2" id="ps-v">500</span></div><input type="range" min="0" max="5000" step="50" value="500" id="ps" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Sonar Pro queries / day</label><span class="cv2" id="pp-v">50</span></div><input type="range" min="0" max="1000" step="10" value="50" id="pp" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Avg input tokens / query</label><span class="cv2" id="pi-v">800</span></div><input type="range" min="200" max="4000" step="100" value="800" id="pi" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>Avg output tokens / query</label><span class="cv2" id="po-v">600</span></div><input type="range" min="100" max="3000" step="100" value="600" id="po" oninput="crCalc()"></div>
+        <div class="ctrl full"><div class="ctrl-top"><label>Search API calls / day (flat $5/1k)</label><span class="cv2" id="psr-v">200</span></div><input type="range" min="0" max="5000" step="50" value="200" id="psr" oninput="crCalc()"></div>
+      </div>
+      <div id="ppl-alert"></div>
+    </div>
+
+    <!-- ZERNIO -->
+    <div class="tool-card">
+      <div class="tool-hdr">
+        <div class="tool-name">📱 Zernio</div>
+        <div class="tool-cost"><div class="tc" id="zer-cost">—</div><div class="tl" id="zer-lbl">—</div></div>
+      </div>
+      <div class="ctrl-grid">
+        <div class="ctrl"><div class="ctrl-top"><label>Connected social accounts</label><span class="cv2" id="za-v">5</span></div><input type="range" min="1" max="200" step="1" value="5" id="za" oninput="crCalc()"></div>
+        <div class="ctrl"><div class="ctrl-top"><label>X/Twitter posts / month</label><span class="cv2" id="zt-v">0</span></div><input type="range" min="0" max="10000" step="100" value="0" id="zt" oninput="crCalc()"></div>
+      </div>
+      <div id="zer-alert"></div>
+    </div>
+  </div><!-- end credit tab -->
+
+  <!-- ═══════ SUBSCRIPTION TAB ═══════ -->
+  <div class="tab-pane" id="tab-sub">
+    <div class="annual-row">
+      <label class="switch"><input type="checkbox" id="ann-tog" onchange="subCalc()"><span class="slider-sw"></span></label>
+      <span>Annual billing — <b>save ~17% on average</b></span>
+    </div>
+
+    <div class="card-grid">
+      <div class="card"><div class="cl">Total / month</div><div class="cv" id="sub-mo">—</div></div>
+      <div class="card"><div class="cl">Total / year</div><div class="cv" id="sub-yr">—</div></div>
+      <div class="card"><div class="cl">Annual saving</div><div class="cv green" id="sub-save">—</div></div>
+      <div class="card"><div class="cl">Active paid plans</div><div class="cv" id="sub-active">—</div></div>
+    </div>
+
+    <div class="bar-section"><h3>Spend by tool</h3><div id="sub-bars"></div></div>
+    <div class="divider"></div>
+
+    <!-- SUB TOOL CARDS -->
+    <div id="sub-tools"></div>
+  </div><!-- end sub tab -->
+
+  <div class="footer">ThinkContent.ai &nbsp;·&nbsp; Internal use only &nbsp;·&nbsp; June 2026 &nbsp;·&nbsp; Update pricing quarterly</div>
+</div>
+
+<script>
+// ── Utilities ────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const C = n => '$' + Math.max(0,n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const N = n => n.toLocaleString('en-US');
+const colors = ['#378ADD','#D85A30','#1D9E75','#7F77DD'];
+
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  $('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function renderBars(containerId, data) {
+  const max = Math.max(...data.map(d=>d.val), 1);
+  $(containerId).innerHTML = data.map((d,i) =>
+    `<div class="bar-row">
+      <div class="bar-lbl">${d.name}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2,Math.round(d.val/max*100))}%;background:${colors[i]}"></div></div>
+      <div class="bar-val">${d.val > 0 ? C(d.val) : '—'}</div>
+    </div>`).join('');
+}
+
+function alert_(id, cls, msg) {
+  $(id).innerHTML = msg ? `<div class="alert ${cls}">${msg}</div>` : '';
+}
+
+// ── CREDIT CALCULATOR ────────────────────────────────────────
+function syncSlider(id, outId) {
+  const v = +$(id).value;
+  $(outId).textContent = N(v);
+  return v;
+}
+
+let crCosts = {tav:{lo:0,hi:0}, rep:{lo:0,hi:0}, ppl:{lo:0,hi:0}, zer:{lo:0,hi:0}};
+
+function crCalc() {
+  const tb  = syncSlider('tb','tb-v');
+  const ta  = syncSlider('ta','ta-v');
+  const te  = syncSlider('te','te-v');
+  const tr  = syncSlider('tr','tr-v');
+  const rb  = syncSlider('rb','rb-v');
+  const rs  = syncSlider('rs','rs-v');
+  const rc  = syncSlider('rc','rc-v');
+  const rd  = syncSlider('rd','rd-v');
+  const ps  = syncSlider('ps','ps-v');
+  const pp  = syncSlider('pp','pp-v');
+  const pi  = syncSlider('pi','pi-v');
+  const po  = syncSlider('po','po-v');
+  const psr = syncSlider('psr','psr-v');
+  const za  = syncSlider('za','za-v');
+  const zt  = syncSlider('zt','zt-v');
+
+  // Tavily
+  const rate = +$('tplan').value;
+  const dailyCr = tb*1 + ta*2 + Math.floor(te/5);
+  const moCr = dailyCr * 30;
+  const baseC = moCr * rate;
+  const resLo = tr*30*4*rate, resHi = tr*30*250*rate;
+  crCosts.tav = {lo: baseC+resLo, hi: baseC+resHi};
+  $('tav-cost').textContent = C(baseC) + (tr>0 ? ` – ${C(baseC+resHi)}` : '');
+  $('tav-lbl').textContent = tr>0 ? 'Research API adds cost range' : `${N(moCr)} credits/mo`;
+  alert_('tav-alert', tr>0?'alert-warn':'alert-ok', tr>0
+    ? `Research API: 4–250 credits per call — adds <strong>${C(resLo)}–${C(resHi)}/mo</strong> of unpredictable cost. Budget conservatively.`
+    : 'No Research API usage — cost is fully predictable.');
+
+  // Replit
+  const rplan = $('rplan').value;
+  const planBase = rplan==='core'?20:100;
+  const included = rplan==='core'?25:40*Math.min(rb,15);
+  const simC = rs*rb*30*0.18;
+  const comLo = rc*rb*30*1.0, comHi = rc*rb*30*5.0;
+  const depC = rd*0.5;
+  const usageLo = simC+comLo+depC, usageHi = simC+comHi+depC;
+  const ovLo = Math.max(0,usageLo-included), ovHi = Math.max(0,usageHi-included);
+  crCosts.rep = {lo: planBase+ovLo, hi: planBase+ovHi};
+  $('rep-cost').textContent = `${C(planBase+ovLo)} – ${C(planBase+ovHi)}`;
+  $('rep-lbl').textContent = `Base ${C(planBase)} + est. overage`;
+  alert_('rep-alert', ovHi>100?'alert-red':ovHi>0?'alert-warn':'alert-ok',
+    ovHi>100 ? `<strong>High overage risk.</strong> Est. ${C(ovLo)}–${C(ovHi)} above included credits — billed to your card with NO cap.`
+    : ovHi>0 ? `Low overage risk. Est. ${C(ovHi)} max above included credits. Monitor first billing cycle.`
+    : `Usage fits within included ${C(included)}/mo credits. No expected overages.`);
+
+  // Perplexity
+  const M=1000000;
+  const sonarC=(ps*30)*((pi/M*1)+(po/M*1));
+  const proC=(pp*30)*((pi/M*3)+(po/M*15));
+  const srC=(psr*30/1000)*5;
+  const pplT=sonarC+proC+srC;
+  crCosts.ppl = {lo:pplT, hi:pplT};
+  $('ppl-cost').textContent = C(pplT);
+  $('ppl-lbl').textContent = `${C(pplT/Math.max(1,(ps+pp)*30)*100).replace('$','')}¢ avg/query`;
+  alert_('ppl-alert','alert-info','Citation tokens no longer billed for Sonar/Sonar Pro (2026). These estimates already reflect that saving.');
+
+  // Zernio
+  const t1=Math.max(0,Math.min(za,10)-2)*6;
+  const t2=Math.max(0,Math.min(za,100)-10)*3;
+  const t3=Math.max(0,za-100)*1;
+  const zC=t1+t2+t3+(zt/1000*5);
+  crCosts.zer={lo:zC,hi:zC};
+  $('zer-cost').textContent = C(zC);
+  $('zer-lbl').textContent = `${N(za)} accounts · ${za<=2?'free tier':'paid tier'}`;
+  alert_('zer-alert','alert-ok','Flat per-account pricing — no usage-based surprises. Cost only changes when you add or remove accounts.');
+
+  // Summaries
+  const lo  = crCosts.tav.lo+crCosts.rep.lo+crCosts.ppl.lo+crCosts.zer.lo;
+  const hi  = crCosts.tav.hi+crCosts.rep.hi+crCosts.ppl.hi+crCosts.zer.hi;
+  const mid = (lo+hi)/2;
+  $('cr-lo').textContent  = C(lo);
+  $('cr-hi').textContent  = C(hi);
+  $('cr-mid').textContent = C(mid);
+  const mids = [{name:'Tavily',val:(crCosts.tav.lo+crCosts.tav.hi)/2},{name:'Replit',val:(crCosts.rep.lo+crCosts.rep.hi)/2},{name:'Perplexity',val:crCosts.ppl.lo},{name:'Zernio',val:crCosts.zer.lo}];
+  $('cr-top').textContent = mids.sort((a,b)=>b.val-a.val)[0].name;
+  renderBars('cr-bars', [{name:'Tavily',val:(crCosts.tav.lo+crCosts.tav.hi)/2},{name:'Replit',val:(crCosts.rep.lo+crCosts.rep.hi)/2},{name:'Perplexity',val:crCosts.ppl.lo},{name:'Zernio',val:crCosts.zer.lo}]);
+}
+
+// ── SUBSCRIPTION CALCULATOR ──────────────────────────────────
+const subTools = {
+  tav: {
+    sel: 'Developer', seats: 1,
+    plans: [
+      {id:'Free',      name:'Free',      detail:'1,000 credits/mo · no credit card',                     mo:0,    yr:0,    badge:''},
+      {id:'Starter',   name:'Starter',   detail:'4,000 credits/mo · basic search',                       mo:29,   yr:290,  badge:''},
+      {id:'Developer', name:'Developer', detail:'15,000 credits/mo · all endpoints',                     mo:99,   yr:990,  badge:'pop'},
+      {id:'Growth',    name:'Growth',    detail:'100,000 credits/mo · priority support',                 mo:499,  yr:4990, badge:''},
+      {id:'Enterprise',name:'Enterprise',detail:'Custom credits · SLA · negotiated pricing',             mo:0,    yr:0,    badge:''},
+    ],
+    note: (p,ann) => p.id==='Enterprise'?'alert-info|Contact Tavily sales for custom pricing.'
+      : p.mo===0?'alert-ok|Good for testing only — not production-ready.'
+      : ann?'alert-ok|Annual billing locks in a lower per-credit rate. Credits still reset monthly.'
+      : 'alert-info|Switch to annual billing to save ~15% on this plan.',
+  },
+  rep: {
+    sel: 'Core', seats: 3,
+    plans: [
+      {id:'Starter',   name:'Starter (Free)', detail:'Daily credit cap · learning only',                 mo:0,    yr:0,    badge:''},
+      {id:'Core',      name:'Core',           detail:'$20/mo base + $25 usage credits · 1 builder',      mo:20,   yr:192,  badge:'pop'},
+      {id:'Pro',       name:'Pro',            detail:'Up to 15 builders · pooled credits · rollover',    mo:100,  yr:960,  badge:'team'},
+      {id:'Enterprise',name:'Enterprise',     detail:'Custom · SSO · SOC 2 · dedicated support',         mo:0,    yr:0,    badge:''},
+    ],
+    note: (p,ann) => p.id==='Starter'?'alert-red|Daily cap makes this unsuitable for production. Heavy use will be blocked.'
+      : p.id==='Enterprise'?'alert-info|Contact Replit sales.'
+      : 'alert-warn|Subscription does NOT eliminate overages. Once credits exhaust, Replit charges your card with no cap or warning.',
+    hasSeats: (sel) => sel === 'Pro',
+    seatsLabel: 'Builders',
+  },
+  ppl: {
+    sel: 'Pro', seats: 5,
+    plans: [
+      {id:'Free',          name:'Free',          detail:'5 Pro searches/day · 1 Deep Research/mo',         mo:0,    yr:0,    badge:''},
+      {id:'Pro',           name:'Pro',           detail:'Unlimited Pro Search · 20 Deep Research/day',     mo:20,   yr:200,  badge:'pop'},
+      {id:'Max',           name:'Max',           detail:'All Pro + Perplexity Computer · 19 models',       mo:200,  yr:2000, badge:''},
+      {id:'Enterprise Pro',name:'Enterprise Pro',detail:'Per seat · SSO · HIPAA · SOC 2 · no training',   mo:40,   yr:400,  badge:'team'},
+      {id:'Enterprise Max',name:'Enterprise Max',detail:'Per seat · all Max + enterprise controls',        mo:325,  yr:3250, badge:'team'},
+    ],
+    note: (p,ann) => p.id==='Free'?'alert-info|Daily limit hit quickly — practical for light occasional use only.'
+      : p.id==='Pro'?'alert-warn|API costs billed separately. The $5/mo credit offset covers very low usage only.'
+      : p.id==='Max'?'alert-warn|Only worth it if you regularly exhaust Pro limits.'
+      : 'alert-info|Per-seat pricing. Confirm minimum seat counts with Perplexity sales.',
+    hasSeats: (sel) => sel.startsWith('Enterprise'),
+    seatsLabel: 'Team seats',
+  },
+  zer: {
+    sel: 'Starter', seats: 1,
+    plans: [
+      {id:'Free',    name:'Free',    detail:'Up to 2 accounts · 20 posts/mo · basic scheduling', mo:0,  yr:0,  badge:''},
+      {id:'Starter', name:'Starter', detail:'~10 accounts · scheduling · basic features',        mo:9,  yr:86, badge:'pop'},
+      {id:'Pro',     name:'Pro',     detail:'~50 accounts · full analytics · all features',      mo:24, yr:230,badge:''},
+      {id:'API/Dev', name:'API/Dev', detail:'Unlimited accounts · per-account tiers ($6/$3/$1)', mo:6,  yr:60, badge:''},
+    ],
+    note: (p,ann) => p.id==='Free'?'alert-info|Personal use or testing only.'
+      : p.id==='API/Dev'?'alert-info|First 2 accounts free. Pricing shown is base $6/ea. Use the credit estimator for exact cost by account count.'
+      : 'alert-ok|Flat plan pricing — most predictable model in this set.',
+  },
+};
+
+const toolNames = {tav:'Tavily',rep:'Replit',ppl:'Perplexity',zer:'Zernio'};
+const toolIcons = {tav:'🔍',rep:'💻',ppl:'🤖',zer:'📱'};
+
+function selectSubPlan(toolId, planId) {
+  subTools[toolId].sel = planId;
+  renderSubTools();
+  subCalc();
+}
+
+function getSubCost(toolId) {
+  const t = subTools[toolId];
+  const p = t.plans.find(p=>p.id===t.sel);
+  if (!p) return {mo:0,yr:0};
+  const ann = $('ann-tog').checked;
+  const seats = (t.hasSeats && t.hasSeats(t.sel)) ? t.seats : 1;
+  const mo = ann ? p.yr/12 : p.mo;
+  return {mo: mo*seats, yr: (ann?p.yr:p.mo*12)*seats, moMo: p.mo*seats};
+}
+
+function renderSubTools() {
+  const ann = $('ann-tog').checked;
+  let html = '';
+  for (const [tid, t] of Object.entries(subTools)) {
+    const cost = getSubCost(tid);
+    const selPlan = t.plans.find(p=>p.id===t.sel);
+    const noteRaw = selPlan && t.note ? t.note(selPlan, ann) : null;
+    const [noteCls, noteMsg] = noteRaw ? noteRaw.split('|') : ['',''];
+    const showSeats = t.hasSeats && t.hasSeats(t.sel);
+
+    html += `<div class="tool-card">
+      <div class="tool-hdr">
+        <div class="tool-name">${toolIcons[tid]} ${toolNames[tid]}</div>
+        <div class="tool-cost">
+          <div class="tc">${cost.mo===0?'Free':C(cost.mo)+'/mo'}</div>
+          <div class="tl">${selPlan?selPlan.name+(ann&&selPlan.yr>0?' · annual':''):''}</div>
+        </div>
+      </div>
+      <div class="plan-grid">
+        ${t.plans.map(p=>{
+          const price = ann ? p.yr/12 : p.mo;
+          const seats = (t.hasSeats && t.hasSeats(p.id)) ? t.seats : 1;
+          return `<div class="plan-opt${t.sel===p.id?' sel':''}" onclick="selectSubPlan('${tid}','${p.id}')">
+            <div>
+              <div class="pn">${p.name}${p.badge==='pop'?'<span class="badge badge-pop">Popular</span>':p.badge==='team'?'<span class="badge badge-team">Team</span>':''}</div>
+              <div class="pd">${p.detail}</div>
+            </div>
+            <div class="pp">${price===0?'Free':C(price*(t.hasSeats&&t.hasSeats(p.id)?t.seats:1))+'/mo'}</div>
+          </div>`;
+        }).join('')}
+      </div>
+      ${showSeats?`<div class="seats-row">
+        <label>${t.seatsLabel||'Seats'}</label>
+        <input type="range" min="1" max="${tid==='rep'?15:100}" step="1" value="${t.seats}" id="seats-${tid}" oninput="updateSeats('${tid}')">
+        <span class="sv" id="seats-${tid}-v">${t.seats}</span>
+      </div>`:''}
+      ${noteMsg?`<div class="alert ${noteCls}">${noteMsg}</div>`:''}
+    </div>`;
+  }
+  $('sub-tools').innerHTML = html;
+}
+
+function updateSeats(tid) {
+  const v = +$(`seats-${tid}`).value;
+  subTools[tid].seats = v;
+  $(`seats-${tid}-v`).textContent = v;
+  renderSubTools();
+  subCalc();
+}
+
+function subCalc() {
+  renderSubTools();
+  const ids = ['tav','rep','ppl','zer'];
+  let totalMo=0, totalYr=0, totalMoMo=0, active=0;
+  ids.forEach(id=>{
+    const c=getSubCost(id);
+    totalMo+=c.mo; totalYr+=c.yr; totalMoMo+=c.moMo;
+    if(c.mo>0) active++;
+  });
+  $('sub-mo').textContent  = C(totalMo);
+  $('sub-yr').textContent  = C(totalYr);
+  const saving = totalMoMo*12 - totalYr;
+  const ann = $('ann-tog').checked;
+  $('sub-save').textContent = ann && saving>0 ? C(saving)+'/yr' : ann ? '$0.00' : 'Toggle annual ↑';
+  $('sub-active').textContent = active + ' paid';
+  renderBars('sub-bars', ids.map((id,i)=>({name:toolNames[id],val:getSubCost(id).mo})));
+}
+
+// Init
+crCalc();
+renderSubTools();
+subCalc();
+</script>
+</body>
+</html>
